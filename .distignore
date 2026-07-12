@@ -6,6 +6,8 @@
 /.gitignore
 /.distignore
 /.phpcs.xml.dist
+/.playground
+/TESTING.md
 /node_modules
 /vendor
 /src

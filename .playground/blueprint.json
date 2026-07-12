@@ -1,0 +1,17 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/options-general.php?page=filtered-calendars",
+	"steps": [
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"blogname": "Filtered Calendars — Local Test",
+				"permalink_structure": "/%postname%/"
+			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require_once '/wordpress/wp-load.php'; update_option( 'filtered_calendars_configs', array( array( 'id' => 'pps-district', 'name' => 'PPS District Calendar', 'url' => 'https://www.pps.net/fs/calendar-manager/events.ics?calendar_ids=159', 'keywords' => \"board\\nbudget\" ) ) ); flush_rewrite_rules( true ); echo 'seeded';"
+		}
+	]
+}

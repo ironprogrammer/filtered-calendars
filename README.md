@@ -106,6 +106,16 @@ npm run build     # production build
 npm run start     # watch mode
 ```
 
+### Testing locally
+
+See **[TESTING.md](TESTING.md)** to run the plugin in a throwaway WordPress via
+the WordPress Playground CLI — the bundled blueprint auto-seeds a calendar so
+you can see the filtering immediately:
+
+```bash
+npx @wp-playground/cli@latest start --port=9400 --blueprint=.playground/blueprint.json
+```
+
 ### Linting
 
 JS/CSS is linted with `@wordpress/scripts`; PHP with PHPCS (WordPress-Extra +
