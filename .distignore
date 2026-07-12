@@ -1,0 +1,17 @@
+# Paths excluded from the distributed plugin zip (wp-scripts plugin-zip).
+# Everything not listed here is included — notably build/, which is the
+# compiled admin app the plugin ships and runs from.
+/.git
+/.github
+/.gitignore
+/.distignore
+/.phpcs.xml.dist
+/node_modules
+/vendor
+/src
+/composer.json
+/composer.lock
+/eslint.config.cjs
+/package.json
+/package-lock.json
+/webpack.config.js

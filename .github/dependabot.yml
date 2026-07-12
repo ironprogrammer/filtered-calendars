@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # npm packages for the admin app.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      wordpress:
+        patterns:
+          - '@wordpress/*'
+
+  # Composer packages for the PHP lint toolchain.
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The GitHub Actions used by the workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

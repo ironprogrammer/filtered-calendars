@@ -1,0 +1,38 @@
+name: Plugin Check
+
+# Run the official WordPress Plugin Check against the built plugin on pull
+# requests, so distribution/readme/security issues surface before release.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # Build the admin app so the checker sees the plugin as it ships.
+      - name: Build admin app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          exclude-directories: |
+            node_modules
+            src
+            vendor

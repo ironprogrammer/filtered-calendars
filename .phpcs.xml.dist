@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<ruleset name="Filtered Calendars">
+	<description>Coding standards for the Filtered Calendars plugin.</description>
+
+	<!-- What to scan: plugin PHP, excluding build tooling and dependencies. -->
+	<file>.</file>
+	<exclude-pattern>/build/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+	<exclude-pattern>/vendor/</exclude-pattern>
+
+	<!-- Only PHP. -->
+	<arg name="extensions" value="php"/>
+	<!-- Show sniff codes and progress; use colors. -->
+	<arg value="ps"/>
+	<arg name="colors"/>
+	<!-- Use as many cores as are available. -->
+	<arg name="parallel" value="8"/>
+
+	<!-- WordPress-Extra: core + best practices, without the opinionated docs rules. -->
+	<rule ref="WordPress-Extra"/>
+
+	<!-- Enforce the plugin's text domain and a consistent global prefix. -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="filtered-calendars"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="FilteredCalendars"/>
+				<element value="filtered_calendars"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Target the versions declared in the plugin header. -->
+	<config name="minimum_wp_version" value="6.9"/>
+	<config name="testVersion" value="7.4-"/>
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>

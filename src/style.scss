@@ -1,0 +1,24 @@
+#filtered-calendars-root {
+	max-width: 1100px;
+	margin-top: 20px;
+
+	.dataviews-wrapper {
+		margin-top: 8px;
+	}
+
+	// Render the calendar URL path as monospace so the path segment reads clearly.
+	.fc-base-path-input input {
+		font-family: Menlo, Consolas, Monaco, monospace;
+	}
+
+	// Render the Subscribe URL affordances as subtle, neutral admin icons
+	// rather than accent-colored buttons.
+	.fc-subscribe-actions .components-button.has-icon {
+		color: #50575e;
+
+		&:hover,
+		&:focus {
+			color: var(--wp-admin-theme-color, #3858e9);
+		}
+	}
+}
