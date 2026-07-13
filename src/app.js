@@ -33,6 +33,13 @@ const DEFAULT_VIEW = {
 	sort: { field: 'name', direction: 'asc' },
 	fields: [ 'url', 'subscribe', 'filtered' ],
 	titleField: 'name',
+	layout: {
+		// Keep the Name column from hogging width so Source has room.
+		styles: {
+			name: { maxWidth: 260 },
+			subscribe: { width: 120 },
+		},
+	},
 };
 
 /**
@@ -198,7 +205,6 @@ export default function App() {
 				id: 'edit',
 				label: __( 'Edit', 'filtered-calendars' ),
 				icon: pencil,
-				isPrimary: true,
 				callback: ( items ) => setEditing( items[ 0 ] ),
 			},
 			{
@@ -410,7 +416,7 @@ export default function App() {
 						{ __(
 							'All calendars are also listed at',
 							'filtered-calendars'
-						) }
+						) }{ ' ' }
 						<a href={ feedBase } target="_blank" rel="noreferrer">
 							{ feedBase }
 						</a>
