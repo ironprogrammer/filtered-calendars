@@ -3,7 +3,7 @@
  * Plugin Name:       Filtered Calendars
  * Plugin URI:        https://github.com/ironprogrammer/filtered-calendars
  * Description:        Re-serve external iCalendar (.ics) feeds with unwanted events removed by keyword, while preserving the origin calendar's identity (name, timezones, event details).
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Brian Alexander
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FILTERED_CALENDARS_VERSION', '1.0.2' );
+define( 'FILTERED_CALENDARS_VERSION', '1.0.3' );
 define( 'FILTERED_CALENDARS_FILE', __FILE__ );
 define( 'FILTERED_CALENDARS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FILTERED_CALENDARS_URL', plugin_dir_url( __FILE__ ) );

@@ -4,12 +4,10 @@ Plugin URI: https://github.com/ironprogrammer/filtered-calendars
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 
-Re-serve external iCalendar (.ics) feeds with unwanted events removed by
-keyword, while keeping each calendar's original identity (name, timezones,
-event details) in your calendar app.
+Re-serve external iCalendar (.ics) feeds with unwanted events removed by keyword, preserving each calendar's name and timezones.
 
 Source code, issues, and contributions: https://github.com/ironprogrammer/filtered-calendars
 

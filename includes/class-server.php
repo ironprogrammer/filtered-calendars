@@ -225,7 +225,7 @@ class Server {
 			);
 		}
 
-		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? trim( wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : '';
+		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : '';
 		if ( '' !== $if_none_match && $this->etag_matches( $if_none_match, $etag ) ) {
 			status_header( 304 );
 			header( 'ETag: ' . $etag );

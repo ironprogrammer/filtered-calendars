@@ -36,10 +36,12 @@ const DEFAULT_VIEW = {
 	// the DataViews "primary column" ignores layout.styles widths.
 	fields: [ 'name', 'url', 'subscribe', 'filtered' ],
 	layout: {
-		// Keep the Name column from hogging width so Source has room.
+		// Cap every column except Source, so the leftover width lands on the
+		// Source URL (which is long) instead of Name or Filtered hogging it.
 		styles: {
-			name: { maxWidth: 240 },
-			subscribe: { width: 120 },
+			name: { maxWidth: 220 },
+			subscribe: { width: 110 },
+			filtered: { maxWidth: 260 },
 		},
 	},
 };

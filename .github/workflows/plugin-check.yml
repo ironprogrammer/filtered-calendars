@@ -1,7 +1,9 @@
 name: Plugin Check
 
-# Run the official WordPress Plugin Check against the built plugin on pull
-# requests, so distribution/readme/security issues surface before release.
+# Run the official WordPress Plugin Check against the *packaged* plugin — the
+# same zip we ship — so it only sees production files (build/ + PHP + readme),
+# not the dev tooling (.phpcs.xml.dist, .github, src, composer, etc.) that
+# .distignore keeps out of the distribution.
 on:
   push:
     branches:
@@ -23,16 +25,16 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Build the admin app so the checker sees the plugin as it ships.
-      - name: Build admin app
+      # Build and package exactly what ships, then unpack it for the checker.
+      - name: Build and package plugin
         run: |
           npm ci
           npm run build
+          npx wp-scripts plugin-zip
+          mkdir -p dist
+          unzip -q filtered-calendars.zip -d dist
 
       - name: Run Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
-          exclude-directories: |
-            node_modules
-            src
-            vendor
+          build-dir: ./dist/filtered-calendars
