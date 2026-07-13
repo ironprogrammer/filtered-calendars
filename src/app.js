@@ -15,6 +15,7 @@ import { external, check, copy, pencil, trash, plus } from '@wordpress/icons';
 import FeedEditModal from './feed-edit-modal';
 import BasePathSetting from './base-path-setting';
 import { useFeeds, useStats, useBasePath } from './hooks';
+import { refreshLabel } from './refresh';
 
 const HOME_URL =
 	( window.filteredCalendarsData && window.filteredCalendarsData.homeUrl ) ||
@@ -31,12 +32,13 @@ const DEFAULT_VIEW = {
 	search: '',
 	filters: [],
 	sort: { field: 'name', direction: 'asc' },
-	fields: [ 'url', 'subscribe', 'filtered' ],
-	titleField: 'name',
+	// Name is a regular column (not titleField) so its width can be constrained;
+	// the DataViews "primary column" ignores layout.styles widths.
+	fields: [ 'name', 'url', 'subscribe', 'filtered' ],
 	layout: {
 		// Keep the Name column from hogging width so Source has room.
 		styles: {
-			name: { maxWidth: 260 },
+			name: { maxWidth: 240 },
 			subscribe: { width: 120 },
 		},
 	},
@@ -101,17 +103,30 @@ function SubscribeCell( { url } ) {
 }
 
 /**
- * Diagnostic cell: how many events were dropped on the last fetch / cumulatively.
+ * Diagnostic cell: the last fetch's drop/keep snapshot, when it was last
+ * checked, and how often the calendar refreshes.
  *
  * @param {Object} props
- * @param {Object} props.stat Per-calendar stats record.
+ * @param {Object} props.stat    Per-calendar stats snapshot.
+ * @param {number} props.refresh Refresh interval in minutes.
  */
-function FilteredCell( { stat } ) {
+function FilteredCell( { stat, refresh } ) {
+	const cadence = refreshLabel( refresh );
+
 	if ( ! stat || ! stat.last_fetch ) {
 		return (
-			<Text variant="muted">
-				{ __( 'Not fetched yet', 'filtered-calendars' ) }
-			</Text>
+			<VStack spacing={ 0 }>
+				<Text variant="muted">
+					{ __( 'Not fetched yet', 'filtered-calendars' ) }
+				</Text>
+				<Text variant="muted" size="small">
+					{ sprintf(
+						/* translators: %s: refresh cadence, e.g. "daily". */
+						__( 'Refreshes %s', 'filtered-calendars' ),
+						cadence
+					) }
+				</Text>
+			</VStack>
 		);
 	}
 
@@ -125,6 +140,19 @@ function FilteredCell( { stat } ) {
 		status = __( '(passed through — parse error)', 'filtered-calendars' );
 	}
 
+	const checked = stat.last_fetch_human
+		? sprintf(
+				/* translators: 1: time ago, e.g. "2 hours"; 2: refresh cadence, e.g. "daily". */
+				__( 'Checked %1$s ago · refreshes %2$s', 'filtered-calendars' ),
+				stat.last_fetch_human,
+				cadence
+		  )
+		: sprintf(
+				/* translators: %s: refresh cadence, e.g. "daily". */
+				__( 'Refreshes %s', 'filtered-calendars' ),
+				cadence
+		  );
+
 	return (
 		<VStack spacing={ 0 }>
 			<Text>
@@ -136,13 +164,13 @@ function FilteredCell( { stat } ) {
 				) }
 			</Text>
 			<Text variant="muted" size="small">
-				{ sprintf(
-					/* translators: %d: cumulative dropped count. */
-					__( '%d dropped all-time', 'filtered-calendars' ),
-					stat.total_dropped
-				) }{ ' ' }
-				{ status }
+				{ checked }
 			</Text>
+			{ status && (
+				<Text variant="muted" size="small">
+					{ status }
+				</Text>
+			) }
 		</VStack>
 	);
 }
@@ -192,7 +220,10 @@ export default function App() {
 				label: __( 'Filtered', 'filtered-calendars' ),
 				enableSorting: false,
 				render: ( { item } ) => (
-					<FilteredCell stat={ stats[ item.id ] } />
+					<FilteredCell
+						stat={ stats[ item.id ] }
+						refresh={ item.refresh }
+					/>
 				),
 			},
 		],
@@ -205,6 +236,7 @@ export default function App() {
 				id: 'edit',
 				label: __( 'Edit', 'filtered-calendars' ),
 				icon: pencil,
+				isPrimary: true,
 				callback: ( items ) => setEditing( items[ 0 ] ),
 			},
 			{
@@ -316,8 +348,8 @@ export default function App() {
 		return <Spinner />;
 	}
 
-	const totalDropped = Object.values( stats ).reduce(
-		( sum, s ) => sum + ( s.total_dropped || 0 ),
+	const totalFiltered = Object.values( stats ).reduce(
+		( sum, s ) => sum + ( s.last_dropped || 0 ),
 		0
 	);
 
@@ -331,15 +363,15 @@ export default function App() {
 					<Text variant="muted">
 						{ feeds.length > 0
 							? sprintf(
-									/* translators: 1: calendar count, 2: total dropped. */
+									/* translators: 1: calendar count, 2: events currently filtered out. */
 									_n(
-										'%1$d calendar · %2$d events dropped all-time',
-										'%1$d calendars · %2$d events dropped all-time',
+										'%1$d calendar · %2$d events filtered',
+										'%1$d calendars · %2$d events filtered',
 										feeds.length,
 										'filtered-calendars'
 									),
 									feeds.length,
-									totalDropped
+									totalFiltered
 							  )
 							: __(
 									'Re-serve external calendars with unwanted events removed.',

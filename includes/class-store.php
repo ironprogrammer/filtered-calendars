@@ -22,6 +22,11 @@ class Store {
 	const OPTION_FLUSH = 'filtered_calendars_flush_needed';
 	const DEFAULT_BASE = 'filtered-calendars';
 
+	// How often (in minutes) to re-fetch a source calendar. Calendars change
+	// infrequently, so the default is daily; the editor offers these choices.
+	const DEFAULT_REFRESH = 1440;
+	const ALLOWED_REFRESH = array( 15, 60, 360, 1440, 10080 );
+
 	/**
 	 * Register options with the REST-enabled settings API.
 	 */
@@ -68,6 +73,7 @@ class Store {
 									'format' => 'uri',
 								),
 								'keywords' => array( 'type' => 'string' ),
+								'refresh'  => array( 'type' => 'integer' ),
 							),
 							'additionalProperties' => false,
 						),
@@ -129,11 +135,15 @@ class Store {
 			// Keep newlines; strip tags and control junk without collapsing lines.
 			$keywords = sanitize_textarea_field( $keywords );
 
+			$refresh = isset( $feed['refresh'] ) ? (int) $feed['refresh'] : self::DEFAULT_REFRESH;
+			$refresh = self::sanitize_refresh( $refresh );
+
 			$clean[] = array(
 				'id'       => $candidate,
 				'name'     => $name,
 				'url'      => $url,
 				'keywords' => $keywords,
+				'refresh'  => $refresh,
 			);
 		}
 
@@ -153,6 +163,28 @@ class Store {
 			$url = 'https://' . substr( $url, strlen( 'webcal://' ) );
 		}
 		return esc_url_raw( $url, array( 'http', 'https' ) );
+	}
+
+	/**
+	 * Clamp a refresh interval (minutes) to one of the allowed choices.
+	 *
+	 * @param int $minutes Raw value.
+	 * @return int
+	 */
+	public static function sanitize_refresh( $minutes ) {
+		$minutes = (int) $minutes;
+		return in_array( $minutes, self::ALLOWED_REFRESH, true ) ? $minutes : self::DEFAULT_REFRESH;
+	}
+
+	/**
+	 * The refresh interval (minutes) for a feed config, with a sane default.
+	 *
+	 * @param array $feed Feed config.
+	 * @return int
+	 */
+	public static function get_refresh( array $feed ) {
+		$minutes = isset( $feed['refresh'] ) ? (int) $feed['refresh'] : self::DEFAULT_REFRESH;
+		return self::sanitize_refresh( $minutes );
 	}
 
 	/**
@@ -213,7 +245,12 @@ class Store {
 	}
 
 	/**
-	 * Record the outcome of a fetch/filter pass for a calendar.
+	 * Record the outcome of the most recent fetch/filter pass for a calendar.
+	 *
+	 * This is a snapshot of the last refresh, not a running tally: it's only
+	 * written when the upstream is actually re-fetched (a cache miss), so it
+	 * reflects "what this calendar looks like now", not how many times it has
+	 * been served.
 	 *
 	 * @param string $slug     Calendar slug.
 	 * @param array  $outcome  { kept:int, dropped:int, dropped_titles:string[], status:string }
@@ -221,17 +258,13 @@ class Store {
 	public static function record_stats( $slug, array $outcome ) {
 		$all = self::get_stats();
 
-		$prev  = isset( $all[ $slug ] ) ? $all[ $slug ] : array();
-		$total = isset( $prev['total_dropped'] ) ? (int) $prev['total_dropped'] : 0;
-
 		$dropped_titles = isset( $outcome['dropped_titles'] ) ? array_values( $outcome['dropped_titles'] ) : array();
 
 		$all[ $slug ] = array(
 			'last_fetch'     => time(),
 			'last_kept'      => isset( $outcome['kept'] ) ? (int) $outcome['kept'] : 0,
 			'last_dropped'   => isset( $outcome['dropped'] ) ? (int) $outcome['dropped'] : 0,
-			'total_dropped'  => $total + ( isset( $outcome['dropped'] ) ? (int) $outcome['dropped'] : 0 ),
-			'recent_dropped' => array_slice( $dropped_titles, 0, 10 ),
+			'dropped_titles' => array_slice( $dropped_titles, 0, 10 ),
 			'status'         => isset( $outcome['status'] ) ? $outcome['status'] : 'ok',
 		);
 

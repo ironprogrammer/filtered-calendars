@@ -4,7 +4,7 @@ Plugin URI: https://github.com/ironprogrammer/filtered-calendars
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 
 Re-serve external iCalendar (.ics) feeds with unwanted events removed by
@@ -47,23 +47,28 @@ preview to check for false positives.
 
 == Caching ==
 
-* Upstream calendars are fetched at most once per 15 minutes (a WordPress
-  transient), so many client polls cost one origin request. Transients expire on
-  their own — nothing accumulates in the database.
-* A separate 24-hour "last known good" copy is kept so that if the origin is
+* Each calendar has a Refresh frequency (every 15 minutes, hourly, every 6
+  hours, daily, or weekly; daily by default). The filtered result is cached for
+  that interval, so reader polls within the window are served from cache without
+  re-fetching the origin or re-filtering. Calendars change rarely, so a longer
+  interval keeps origin requests low.
+* A separate 7-day "last known good" copy is kept so that if the origin is
   briefly down, your app still gets the most recent successful calendar (marked
   as served-from-cache in the admin).
-* Upstream fetches use conditional GET (If-None-Match / If-Modified-Since).
-* The filtered response carries an ETag and Cache-Control, and answers a client's
-  If-None-Match with 304 Not Modified.
+* Upstream fetches use conditional GET (If-None-Match / If-Modified-Since), so an
+  unchanged calendar costs a cheap 304.
+* The filtered response carries an ETag and a Cache-Control max-age matching the
+  refresh interval, and answers a client's If-None-Match with 304 Not Modified.
 
 Individual events are never stored as WordPress posts.
 
 == Diagnostics ==
 
 Settings → Filtered Calendars shows, per calendar: how many events were dropped
-and kept on the last fetch, a cumulative all-time dropped count, and the names of
-the most recently dropped events — so you can confirm it's doing what you expect.
+and kept on the most recent fetch, when it was last checked, the refresh cadence,
+and the names of the most recently dropped events — so you can confirm it's doing
+what you expect. (Counts are a snapshot of the latest refresh, not a running
+tally of every request.)
 
 == Development ==
 

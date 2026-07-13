@@ -3,6 +3,7 @@ import {
 	Button,
 	TextControl,
 	TextareaControl,
+	SelectControl,
 	Notice,
 	Flex,
 	FlexItem,
@@ -14,6 +15,7 @@ import {
 import { useState, useRef, useEffect } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
+import { REFRESH_OPTIONS, DEFAULT_REFRESH } from './refresh';
 
 const PLACEHOLDER = `board
 budget
@@ -37,6 +39,7 @@ export default function FeedEditModal( { feed, onSave, onClose, isSaving } ) {
 		name: feed.name || '',
 		url: feed.url || '',
 		keywords: feed.keywords || '',
+		refresh: feed.refresh || DEFAULT_REFRESH,
 	} );
 	const [ preview, setPreview ] = useState( null );
 	const [ previewing, setPreviewing ] = useState( false );
@@ -185,6 +188,24 @@ export default function FeedEditModal( { feed, onSave, onClose, isSaving } ) {
 					onChange={ ( keywords ) =>
 						setDraft( { ...draft, keywords } )
 					}
+					__nextHasNoMarginBottom
+				/>
+
+				<SelectControl
+					label={ __( 'Refresh frequency', 'filtered-calendars' ) }
+					help={ __(
+						'How often to re-fetch the source calendar. Calendars change rarely, so daily is usually plenty.',
+						'filtered-calendars'
+					) }
+					value={ String( draft.refresh ) }
+					options={ REFRESH_OPTIONS }
+					onChange={ ( value ) =>
+						setDraft( {
+							...draft,
+							refresh: parseInt( value, 10 ) || DEFAULT_REFRESH,
+						} )
+					}
+					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 				/>
 

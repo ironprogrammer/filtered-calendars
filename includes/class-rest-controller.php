@@ -78,7 +78,16 @@ class Rest_Controller {
 	 * @return \WP_REST_Response
 	 */
 	public function get_stats() {
-		return rest_ensure_response( Store::get_stats() );
+		$stats = Store::get_stats();
+
+		// Decorate each snapshot with a human-readable "time ago" for display.
+		foreach ( $stats as $slug => $stat ) {
+			if ( ! empty( $stat['last_fetch'] ) ) {
+				$stats[ $slug ]['last_fetch_human'] = human_time_diff( (int) $stat['last_fetch'], time() );
+			}
+		}
+
+		return rest_ensure_response( $stats );
 	}
 
 	/**

@@ -17,8 +17,11 @@ class Server {
 
 	const QUERY_VAR       = 'filtered_calendar';
 	const QUERY_VAR_INDEX = 'filtered_calendar_index';
-	const CACHE_FRESH     = 900;    // 15 minutes of "fresh" upstream cache.
-	const CACHE_GOOD      = 86400;  // 24 hours of stale-if-error fallback.
+
+	// How long to keep the last-known-good upstream copy (validators + body) for
+	// conditional GET and stale-if-error fallback. The per-calendar refresh
+	// interval gates freshness (see serve()); this only needs to outlive it.
+	const GOOD_TTL = 604800; // 7 days.
 
 	// Bump when the rewrite rules below change, so existing installs re-flush
 	// on the next request without needing a manual deactivate/reactivate.
@@ -187,16 +190,74 @@ class Server {
 	/**
 	 * Fetch, filter, and output one calendar.
 	 *
+	 * The filtered output is cached for the calendar's refresh interval, so
+	 * repeated reader polls within that window serve cached bytes without
+	 * re-fetching the origin, re-filtering, or re-recording stats. Only a cache
+	 * miss touches the network and the diagnostic snapshot.
+	 *
 	 * @param array $feed Calendar config.
 	 */
 	private function serve( array $feed ) {
-		$upstream = $this->get_upstream( $feed['url'] );
+		$refresh = Store::get_refresh( $feed ) * MINUTE_IN_SECONDS;
+		$out_key = 'fc_out_' . md5( $feed['id'] . '|' . $feed['url'] . '|' . $feed['keywords'] . '|' . $refresh );
+
+		$cached = get_transient( $out_key );
+		if ( is_array( $cached ) && isset( $cached['body'], $cached['etag'] ) ) {
+			$body = $cached['body'];
+			$etag = $cached['etag'];
+		} else {
+			$prepared = $this->prepare( $feed, $refresh );
+			if ( null === $prepared ) {
+				status_header( 502 );
+				header( 'Content-Type: text/plain; charset=utf-8' );
+				echo 'Upstream calendar is unavailable.';
+				exit;
+			}
+			$body = $prepared['body'];
+			$etag = $prepared['etag'];
+			set_transient(
+				$out_key,
+				array(
+					'body' => $body,
+					'etag' => $etag,
+				),
+				$refresh
+			);
+		}
+
+		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? trim( wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : '';
+		if ( '' !== $if_none_match && $this->etag_matches( $if_none_match, $etag ) ) {
+			status_header( 304 );
+			header( 'ETag: ' . $etag );
+			header( 'Cache-Control: max-age=' . $refresh );
+			exit;
+		}
+
+		status_header( 200 );
+		header( 'Content-Type: text/calendar; charset=utf-8' );
+		header( 'ETag: ' . $etag );
+		header( 'Cache-Control: max-age=' . $refresh );
+		header( 'X-Robots-Tag: noindex' );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- iCalendar body, not HTML.
+		echo $body;
+	}
+
+	/**
+	 * Fetch the upstream, filter it, and record the diagnostic snapshot.
+	 *
+	 * Runs only on a cache miss. Returns the filtered body and its ETag, or null
+	 * if the upstream is unavailable and there is no fallback copy.
+	 *
+	 * @param array $feed    Calendar config.
+	 * @param int   $refresh Refresh interval in seconds (for the good-copy TTL).
+	 * @return array|null { body:string, etag:string }
+	 */
+	private function prepare( array $feed, $refresh ) {
+		$upstream = $this->get_upstream( $feed['url'], $refresh );
 
 		if ( empty( $upstream['body'] ) ) {
-			status_header( 502 );
-			header( 'Content-Type: text/plain; charset=utf-8' );
-			echo 'Upstream calendar is unavailable.';
-			exit;
+			return null;
 		}
 
 		$patterns = Filter::compile( $feed['keywords'] );
@@ -226,42 +287,25 @@ class Server {
 			);
 		}
 
-		// ETag reflects the exact bytes we're about to send (post-filter).
-		$etag = '"' . md5( $body ) . '"';
-
-		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? trim( wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : '';
-		if ( '' !== $if_none_match && $this->etag_matches( $if_none_match, $etag ) ) {
-			status_header( 304 );
-			header( 'ETag: ' . $etag );
-			header( 'Cache-Control: max-age=' . self::CACHE_FRESH );
-			exit;
-		}
-
-		status_header( 200 );
-		header( 'Content-Type: text/calendar; charset=utf-8' );
-		header( 'ETag: ' . $etag );
-		header( 'Cache-Control: max-age=' . self::CACHE_FRESH );
-		header( 'X-Robots-Tag: noindex' );
-
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- iCalendar body, not HTML.
-		echo $body;
+		return array(
+			'body' => $body,
+			// ETag reflects the exact bytes we're about to serve (post-filter).
+			'etag' => '"' . md5( $body ) . '"',
+		);
 	}
 
 	/**
-	 * Get upstream calendar body, from cache or network, with stale fallback.
+	 * Get upstream calendar body from the network, with a conditional GET and a
+	 * stale-if-error fallback. Freshness is gated by the output cache in serve(),
+	 * so this always revalidates; a 304 is cheap and reuses the last good copy.
 	 *
-	 * @param string $url Upstream URL.
+	 * @param string $url     Upstream URL.
+	 * @param int    $refresh Refresh interval in seconds (sets the good-copy TTL).
 	 * @return array { body:string, stale:bool }
 	 */
-	private function get_upstream( $url ) {
-		$key      = 'fc_up_' . md5( $url );
+	private function get_upstream( $url, $refresh ) {
 		$good_key = 'fc_good_' . md5( $url );
-
-		$cached = get_transient( $key );
-		if ( is_array( $cached ) && isset( $cached['body'] ) ) {
-			$cached['stale'] = false;
-			return $cached;
-		}
+		$good_ttl = max( self::GOOD_TTL, (int) $refresh * 2 );
 
 		// Conditional GET using validators from the last good copy.
 		$last_good = get_transient( $good_key );
@@ -292,11 +336,11 @@ class Server {
 
 		// Upstream says nothing changed — reuse the last good body.
 		if ( 304 === $code && is_array( $last_good ) ) {
-			$fresh = array( 'body' => $last_good['body'] );
-			set_transient( $key, $fresh, self::CACHE_FRESH );
-			set_transient( $good_key, $last_good, self::CACHE_GOOD );
-			$fresh['stale'] = false;
-			return $fresh;
+			set_transient( $good_key, $last_good, $good_ttl );
+			return array(
+				'body'  => $last_good['body'],
+				'stale' => false,
+			);
 		}
 
 		$body = wp_remote_retrieve_body( $response );
@@ -310,8 +354,7 @@ class Server {
 			'last_modified' => wp_remote_retrieve_header( $response, 'last-modified' ),
 		);
 
-		set_transient( $key, array( 'body' => $body ), self::CACHE_FRESH );
-		set_transient( $good_key, $record, self::CACHE_GOOD );
+		set_transient( $good_key, $record, $good_ttl );
 
 		return array(
 			'body'  => $body,
