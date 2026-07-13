@@ -9,9 +9,9 @@ License: GPLv2 or later
 
 Re-serve external iCalendar (.ics) feeds with unwanted events removed by keyword, preserving each calendar's name and timezones.
 
-Source code, issues, and contributions: https://github.com/ironprogrammer/filtered-calendars
-
 == What it does ==
+
+Source code, issues, and contributions: https://github.com/ironprogrammer/filtered-calendars
 
 Point it at a source calendar (e.g. a school or district .ics URL), give it a
 list of keywords to drop (e.g. "board", "budget"), and subscribe your calendar
